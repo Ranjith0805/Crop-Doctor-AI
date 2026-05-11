@@ -352,20 +352,29 @@ def main():
                     st.success(t["result_title"])
                     st.divider()
 
-                    st.markdown(f"### 🦠 {t['disease_name']}")
+                    en = TRANSLATIONS["English"]
+                    is_english = st.session_state.language == "English"
+
+                    def heading(emoji, key):
+                        label = t[key]
+                        if not is_english:
+                            label += f" ({en[key]})"
+                        return f"### {emoji} {label}"
+
+                    st.markdown(heading("🦠", "disease_name"))
                     st.info(result.get("disease_name", "—"))
 
-                    st.markdown(f"### 🔍 {t['cause']}")
+                    st.markdown(heading("🔍", "cause"))
                     st.write(result.get("cause", "—"))
 
-                    st.markdown(f"### 💊 {t['treatment']}")
+                    st.markdown(heading("💊", "treatment"))
                     for i, step in enumerate(result.get("treatment", []), 1):
                         st.markdown(f"**{i}.** {step}")
 
-                    st.markdown(f"### 🧴 {t['pesticide']}")
+                    st.markdown(heading("🧴", "pesticide"))
                     st.success(result.get("pesticide", "—"))
 
-                    st.markdown(f"### 🛡️ {t['prevention']}")
+                    st.markdown(heading("🛡️", "prevention"))
                     for tip in result.get("prevention", []):
                         st.markdown(f"✅ {tip}")
 

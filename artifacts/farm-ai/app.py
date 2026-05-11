@@ -276,7 +276,6 @@ def main():
         st.session_state.language = "English"
 
     t = TRANSLATIONS[st.session_state.language]
-
     st.selectbox(
         t["lang_label"],
         lang_options,
@@ -285,15 +284,33 @@ def main():
     )
 
     t = TRANSLATIONS[st.session_state.language]
+    en = TRANSLATIONS["English"]
+    is_english = st.session_state.language == "English"
+
+    def bi(key):
+        """Return 'translated (English)' for non-English, else just the text."""
+        if is_english:
+            return t[key]
+        return f"{t[key]} ({en[key]})"
+
+    def bi_opts(key):
+        """Return bilingual options list for dropdowns/radios."""
+        if is_english:
+            return t[key]
+        return [f"{tr} ({en_opt})" for tr, en_opt in zip(t[key], en[key])]
+
+    def h(emoji, key):
+        """Return a markdown heading with bilingual label."""
+        return f"### {emoji} {bi(key)}"
 
     st.title(t["title"])
-    st.subheader(t["subtitle"])
-    st.write(t["tagline"])
+    st.subheader(bi("subtitle"))
+    st.write(bi("tagline"))
     st.divider()
 
-    st.subheader(t["section_photo"])
+    st.subheader(bi("section_photo"))
     uploaded_file = st.file_uploader(
-        t["upload_label"],
+        bi("upload_label"),
         type=["jpg", "jpeg", "png", "webp"],
         label_visibility="visible",
     )
@@ -303,33 +320,33 @@ def main():
         st.image(image, use_container_width=True, caption="📷 Uploaded crop photo")
 
     st.divider()
-    st.subheader(t["section_details"])
+    st.subheader(bi("section_details"))
 
     col1, col2 = st.columns(2)
     with col1:
-        crop = st.selectbox(t["crop_type"], t["crops"])
-        soil = st.selectbox(t["soil_type"], t["soils"])
+        crop = st.selectbox(bi("crop_type"), bi_opts("crops"))
+        soil = st.selectbox(bi("soil_type"), bi_opts("soils"))
     with col2:
-        water = st.radio(t["water_level"], t["water_levels"], horizontal=False)
-        weather = st.radio(t["weather"], t["weathers"], horizontal=False)
+        water = st.radio(bi("water_level"), bi_opts("water_levels"), horizontal=False)
+        weather = st.radio(bi("weather"), bi_opts("weathers"), horizontal=False)
 
     st.divider()
 
     col3, col4 = st.columns(2)
     with col3:
-        stem = st.radio(t["stem_feel"], t["stems"])
-        leaf = st.radio(t["leaf_feel"], t["leaves"])
+        stem = st.radio(bi("stem_feel"), bi_opts("stems"))
+        leaf = st.radio(bi("leaf_feel"), bi_opts("leaves"))
     with col4:
-        problem_start = st.radio(t["problem_start"], t["problem_times"])
-        insects = st.radio(t["insects"], t["insects_opts"])
+        problem_start = st.radio(bi("problem_start"), bi_opts("problem_times"))
+        insects = st.radio(bi("insects"), bi_opts("insects_opts"))
 
     st.divider()
 
-    if st.button(t["submit"], use_container_width=True, type="primary"):
+    if st.button(bi("submit"), use_container_width=True, type="primary"):
         if not uploaded_file:
-            st.warning(t["no_photo"])
+            st.warning(bi("no_photo"))
         else:
-            with st.spinner(t["analyzing"]):
+            with st.spinner(bi("analyzing")):
                 try:
                     uploaded_file.seek(0)
                     image_bytes = uploaded_file.read()
@@ -349,44 +366,35 @@ def main():
                         insects=insects,
                     )
 
-                    st.success(t["result_title"])
+                    st.success(bi("result_title"))
                     st.divider()
 
-                    en = TRANSLATIONS["English"]
-                    is_english = st.session_state.language == "English"
-
-                    def heading(emoji, key):
-                        label = t[key]
-                        if not is_english:
-                            label += f" ({en[key]})"
-                        return f"### {emoji} {label}"
-
-                    st.markdown(heading("🦠", "disease_name"))
+                    st.markdown(h("🦠", "disease_name"))
                     st.info(result.get("disease_name", "—"))
 
-                    st.markdown(heading("🔍", "cause"))
+                    st.markdown(h("🔍", "cause"))
                     st.write(result.get("cause", "—"))
 
-                    st.markdown(heading("💊", "treatment"))
+                    st.markdown(h("💊", "treatment"))
                     for i, step in enumerate(result.get("treatment", []), 1):
                         st.markdown(f"**{i}.** {step}")
 
-                    st.markdown(heading("🧴", "pesticide"))
+                    st.markdown(h("🧴", "pesticide"))
                     st.success(result.get("pesticide", "—"))
 
-                    st.markdown(heading("🛡️", "prevention"))
+                    st.markdown(h("🛡️", "prevention"))
                     for tip in result.get("prevention", []):
                         st.markdown(f"✅ {tip}")
 
                 except json.JSONDecodeError:
-                    st.error(t["error_msg"])
+                    st.error(bi("error_msg"))
                     st.write("Raw AI response could not be parsed. Please try again.")
                 except Exception as e:
-                    st.error(t["error_msg"])
+                    st.error(bi("error_msg"))
                     st.write(str(e))
 
     st.divider()
-    st.warning(t["disclaimer"])
+    st.warning(bi("disclaimer"))
 
 
 if __name__ == "__main__":

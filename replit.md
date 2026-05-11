@@ -1,44 +1,53 @@
-# [Project name]
+# FarmAI
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+AI-powered crop disease detector for Indian farmers — upload a crop photo, answer a few questions, and get an instant diagnosis with treatment advice.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `cd artifacts/farm-ai && streamlit run app.py --server.port 8000` — run FarmAI (port 8000)
+- Workflow name: `FarmAI`
+- Required env: `AI_INTEGRATIONS_GEMINI_BASE_URL`, `AI_INTEGRATIONS_GEMINI_API_KEY` — auto-provisioned via Replit AI Integrations
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Python 3 + Streamlit 1.45
+- Google Gemini AI (`google-genai` SDK, model: `gemini-2.5-flash`)
+- Pillow for image handling
+- Replit AI Integrations (Gemini proxy — no user API key needed)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/farm-ai/app.py` — main Streamlit application
+- `artifacts/farm-ai/.streamlit/config.toml` — Streamlit server + green theme config
+- `artifacts/farm-ai/requirements.txt` — Python dependencies
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Uses Replit AI Integrations proxy for Gemini — no user API key required, billed to Replit credits
+- Google Gemini `gemini-2.5-flash` model used instead of `gemini-1.5-flash` (1.5-flash not available via Replit proxy)
+- AI response is requested as strict JSON for reliable parsing, with markdown fence stripping as fallback
+- Image passed inline as base64 bytes (Gemini inline data); no Files API used (unsupported by proxy)
+- Multilingual UI via a static translations dict — language selection triggers instant re-render via session state
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Upload a photo of an affected crop
+- Select crop type, soil type, water level, recent weather, stem feel, leaf feel, when problem started, insect visibility
+- Receive: disease name, cause, treatment steps, pesticide/fertilizer recommendation, prevention tips
+- Supported languages: English, Hindi, Tamil, Telugu, Kannada
+- Green-themed mobile-friendly UI with disclaimer
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Language: Tamil, Hindi, Telugu, Kannada, English — all supported
+- Design: clean, green themed, farmer-friendly, mobile-first
+- Model: Gemini (gemini-2.5-flash via Replit AI Integrations)
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `AI_INTEGRATIONS_GEMINI_BASE_URL` and `AI_INTEGRATIONS_GEMINI_API_KEY` must be set — run `setupReplitAIIntegrations` in code_execution if missing
+- Streamlit runs in `artifacts/farm-ai/` — run the command from that directory or use the absolute path
+- `google-genai==2.0.1` installed globally via pip (not in pnpm workspace)
 
 ## Pointers
 

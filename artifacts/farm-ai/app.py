@@ -5,7 +5,8 @@ from PIL import Image
 import google.generativeai as genai
 
 genai.configure(api_key=os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
+vision_model = genai.GenerativeModel("gemini-pro-vision")
+text_model = genai.GenerativeModel("gemini-pro")
 
 st.set_page_config(
     page_title="FarmAI - Crop Disease Detector",
@@ -251,7 +252,8 @@ def analyze_crop(lang, image_bytes, image_mime, crop, soil, water, weather, stem
 
     contents.append(prompt)
 
-    response = model.generate_content(
+    active_model = vision_model if image_bytes else text_model
+    response = active_model.generate_content(
         contents,
         generation_config=genai.types.GenerationConfig(
             max_output_tokens=8192,

@@ -1,11 +1,11 @@
 import streamlit as st
 import os
-import base64
 import json
 from PIL import Image
-import io
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+
+genai.configure(api_key=os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 st.set_page_config(
     page_title="FarmAI - Crop Disease Detector",
@@ -198,19 +198,6 @@ TRANSLATIONS = {
 }
 
 
-def get_gemini_client():
-    api_key = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY", "")
-    base_url = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL", "")
-    if base_url:
-        client = genai.Client(
-            api_key=api_key,
-            http_options={"base_url": base_url},
-        )
-    else:
-        client = genai.Client(api_key=api_key)
-    return client
-
-
 def build_prompt(lang, crop, soil, water, weather, stem, leaf, problem_start, insects, image_provided):
     lang_instruction = {
         "English": "Respond in English.",
@@ -252,21 +239,21 @@ Be specific, practical, and use language simple enough for a rural farmer to und
 
 
 def analyze_crop(lang, image_bytes, image_mime, crop, soil, water, weather, stem, leaf, problem_start, insects):
-    client = get_gemini_client()
     prompt = build_prompt(lang, crop, soil, water, weather, stem, leaf, problem_start, insects, image_bytes is not None)
 
     contents = []
 
     if image_bytes:
-        image_part = types.Part.from_bytes(data=image_bytes, mime_type=image_mime)
-        contents.append(image_part)
+        import PIL.Image
+        import io
+        pil_image = PIL.Image.open(io.BytesIO(image_bytes))
+        contents.append(pil_image)
 
     contents.append(prompt)
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=contents,
-        config=types.GenerateContentConfig(
+    response = model.generate_content(
+        contents,
+        generation_config=genai.types.GenerationConfig(
             max_output_tokens=8192,
             temperature=0.3,
         ),

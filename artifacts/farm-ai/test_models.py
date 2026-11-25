@@ -1,11 +1,10 @@
 import os
-import google.generativeai as genai
+import requests
 
-genai.configure(api_key=os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY"))
+key = os.environ.get("GEMINI_API_KEY") or os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY")
+resp = requests.get("https://generativelanguage.googleapis.com/v1beta/models", headers={"x-goog-api-key": key}, timeout=30)
+resp.raise_for_status()
 
 print("Available Gemini models:\n")
-for model in genai.list_models():
-    print(f"  Name:               {model.name}")
-    print(f"  Display name:       {model.display_name}")
-    print(f"  Supported methods:  {model.supported_generation_methods}")
-    print()
+for m in resp.json().get("models", []):
+    print(f"  {m['name']}  ({m.get('displayName', '')})")

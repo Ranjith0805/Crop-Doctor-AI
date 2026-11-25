@@ -39,8 +39,18 @@ Small and rural farmers in India with no access to agricultural experts.
 ## 🛠️ Tech Stack
 - Python
 - Streamlit
-- Google Gemini API (gemini-2.5-flash)
+- Google Gemini API (gemini-3.5-flash-lite, via the REST API)
 - Replit
+
+## ▶️ Run it locally
+```bash
+cd artifacts/farm-ai
+pip install -r requirements.txt
+# get a free key at https://aistudio.google.com/api-keys
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml   # then paste your key in it
+streamlit run app.py
+```
+You can also set the key as an environment variable: `GEMINI_API_KEY=your-key`.
 
 ## ⚠️ Disclaimer
 FarmAI is not 100% accurate. Rare diseases might be missed. Always consult a certified agricultural expert for serious cases.

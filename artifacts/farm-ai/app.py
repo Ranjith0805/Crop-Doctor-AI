@@ -2,10 +2,78 @@ import streamlit as st
 import os
 import json
 from PIL import Image
-import google.generativeai as genai
+import base64
+import requests
 
-genai.configure(api_key=os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.5-flash")
+# gemini-2.5-flash is retired on Dec 1, 2026; gemini-3.5-flash-lite is Google's replacement.
+MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+# Used automatically if the main model is overloaded (503) or rate-limited (429).
+FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-3.6-flash")
+RETRYABLE = {429, 500, 503, 504}
+
+
+def get_api_key():
+    """Read the Gemini key from Streamlit secrets or env vars (works locally, on Streamlit Cloud and on Replit)."""
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            return st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+    return (
+        os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+        or os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY")
+    )
+
+
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+
+def call_gemini(api_key, parts):
+    """Try the main model with retries, then the fallback model, when Gemini is busy."""
+    import time
+    last_error = None
+    for model in (MODEL_NAME, FALLBACK_MODEL):
+        for attempt in range(3):
+            try:
+                return call_gemini_once(api_key, parts, model)
+            except GeminiBusy as e:
+                last_error = e
+                time.sleep(2 * (attempt + 1))
+    raise RuntimeError(f"Gemini is very busy right now, please try again in a minute. ({last_error})")
+
+
+class GeminiBusy(Exception):
+    pass
+
+
+def call_gemini_once(api_key, parts, model):
+    """Call the Gemini REST API directly (no SDK, so no compiled DLLs for Windows to block)."""
+    resp = requests.post(
+        GEMINI_URL.format(model=model),
+        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+        json={
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {
+                "maxOutputTokens": 8192,
+                "responseMimeType": "application/json",
+            },
+        },
+        timeout=120,
+    )
+    if resp.status_code != 200:
+        try:
+            msg = resp.json().get("error", {}).get("message", resp.text)
+        except ValueError:
+            msg = resp.text
+        if resp.status_code in RETRYABLE:
+            raise GeminiBusy(f"{model}: {resp.status_code} {msg}")
+        raise RuntimeError(f"Gemini API error {resp.status_code}: {msg}")
+    data = resp.json()
+    candidates = data.get("candidates") or []
+    if not candidates:
+        raise RuntimeError(f"Gemini returned no answer: {data.get('promptFeedback', data)}")
+    return "".join(p.get("text", "") for p in candidates[0].get("content", {}).get("parts", []))
 
 st.set_page_config(
     page_title="FarmAI - Crop Disease Detector",
@@ -241,25 +309,23 @@ Be specific, practical, and use language simple enough for a rural farmer to und
 def analyze_crop(lang, image_bytes, image_mime, crop, soil, water, weather, stem, leaf, problem_start, insects):
     prompt = build_prompt(lang, crop, soil, water, weather, stem, leaf, problem_start, insects, image_bytes is not None)
 
-    contents = []
+    api_key = get_api_key()
+    if not api_key:
+        raise RuntimeError("Gemini API key not found. Set GEMINI_API_KEY in .streamlit/secrets.toml or as an environment variable.")
 
+    parts = []
     if image_bytes:
-        import PIL.Image
-        import io
-        pil_image = PIL.Image.open(io.BytesIO(image_bytes))
-        contents.append(pil_image)
+        parts.append({
+            "inline_data": {
+                "mime_type": image_mime or "image/jpeg",
+                "data": base64.b64encode(image_bytes).decode("utf-8"),
+            }
+        })
+    parts.append({"text": prompt})
 
-    contents.append(prompt)
+    response_text = call_gemini(api_key, parts)
 
-    response = model.generate_content(
-        contents,
-        generation_config=genai.types.GenerationConfig(
-            max_output_tokens=8192,
-            temperature=0.3,
-        ),
-    )
-
-    raw = response.text.strip()
+    raw = (response_text or "").strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):

@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Streamlit secrets
+artifacts/farm-ai/.streamlit/secrets.toml
